@@ -18,6 +18,7 @@ type Props = {
   onReport: () => void;
   onMarkSafe: () => void;
   onOpenCompare: () => void;
+  notice?: string | null;
 };
 
 function formatWhen(iso: string) {
@@ -43,11 +44,13 @@ export function ScanResult({
   onReport,
   onMarkSafe,
   onOpenCompare,
+  notice = null,
 }: Props) {
   const result = scan.results[viewModel];
   const other: ModelId = viewModel === "guardian" ? "balancer" : "guardian";
   const disagree = scan.results.guardian.verdict !== scan.results.balancer.verdict;
   const isScam = result.verdict === "potential_scam";
+  const engineLabel = scan.engine === "gemini" ? "Gemini" : "Local rules";
 
   return (
     <div className="screen-enter flex h-full flex-col overflow-y-auto px-5 pb-6 pt-5">
@@ -62,6 +65,16 @@ export function ScanResult({
         <h1 className="font-display text-lg font-bold text-[var(--vouch-navy)]">Scan Result</h1>
         <span className="w-12" />
       </div>
+
+      <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--vouch-muted)]">
+        Engine: {engineLabel}
+      </p>
+
+      {notice && (
+        <div className="mb-3 rounded-xl border border-[#f6d6a8] bg-[#fff7eb] px-3 py-2 text-xs text-[var(--vouch-amber)]">
+          {notice}
+        </div>
+      )}
 
       <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl bg-[#eef3ff] p-1">
         <ModelTab

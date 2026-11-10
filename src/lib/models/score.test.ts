@@ -21,6 +21,19 @@ describe("extractFeatures", () => {
     expect(f.urgencyScore).toBeLessThan(0.34);
     expect(f.requestsPersonalInfo).toBe(false);
   });
+
+  it("flags a vague payment demand as a financial request", () => {
+    const f = extractFeatures("make the payment at this.");
+    expect(f.financialRequest).toBe(true);
+  });
+});
+
+describe("vague payment message", () => {
+  it("does not mark a bare payment demand as clearly safe on Guardian", () => {
+    const scan = analyzeMessage("make the payment at this.");
+    expect(scan.results.guardian.verdict).toBe("potential_scam");
+    expect(scan.results.guardian.riskScore).toBeGreaterThan(0);
+  });
 });
 
 describe("dual local models", () => {

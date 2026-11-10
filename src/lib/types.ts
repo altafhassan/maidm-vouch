@@ -13,6 +13,7 @@ export type ExtractedFeatures = {
   urgencyScore: number;
   requestsPersonalInfo: boolean;
   financialRequest: boolean;
+  vagueSolicitation: boolean;
   brandImpersonation: boolean;
   suspiciousSender: boolean;
   displayNameMismatch: boolean;
@@ -40,6 +41,8 @@ export type ModelResult = {
   recommendation: string;
 };
 
+export type AnalysisEngine = "local" | "gemini";
+
 export type ScanRecord = {
   id: string;
   createdAt: string;
@@ -52,6 +55,7 @@ export type ScanRecord = {
   features: ExtractedFeatures;
   results: Record<ModelId, ModelResult>;
   primaryModel: ModelId;
+  engine?: AnalysisEngine;
   quarantined: boolean;
   feedback: "confirmed_scam" | "marked_safe" | null;
 };

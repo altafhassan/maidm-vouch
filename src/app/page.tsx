@@ -8,7 +8,7 @@ export default function Page() {
           Ethics class prototype
         </p>
         <p className="mt-2 text-sm text-[var(--vouch-muted)]">
-          Fully offline scoring · two local models · ready to host on Vercel
+          Dual policies · local rules by default · optional Gemini when configured
         </p>
       </div>
       <VouchApp />

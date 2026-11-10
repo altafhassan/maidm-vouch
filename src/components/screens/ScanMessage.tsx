@@ -8,9 +8,10 @@ type Props = {
   onChange: (value: string) => void;
   onBack: () => void;
   onAnalyze: () => void;
+  analyzing?: boolean;
 };
 
-export function ScanMessage({ value, onChange, onBack, onAnalyze }: Props) {
+export function ScanMessage({ value, onChange, onBack, onAnalyze, analyzing = false }: Props) {
   return (
     <div className="screen-enter flex h-full flex-col px-5 pb-6 pt-5">
       <button
@@ -44,10 +45,10 @@ export function ScanMessage({ value, onChange, onBack, onAnalyze }: Props) {
       <button
         type="button"
         className="btn-primary mt-4 h-12 w-full disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={!value.trim()}
+        disabled={!value.trim() || analyzing}
         onClick={onAnalyze}
       >
-        Analyze Message
+        {analyzing ? "Analyzing…" : "Analyze Message"}
       </button>
     </div>
   );

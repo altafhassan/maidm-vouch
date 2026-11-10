@@ -1,61 +1,62 @@
 # Vouch — Spam & Scam Detector
 
-Classroom prototype. Runs entirely in your browser — **no API keys, no ChatGPT, no paid services**.
+Classroom prototype for an ethics course. Check messages/emails for scam signals with **two scoring policies** (Guardian vs Balancer).
 
-## Run on your laptop (from the project root)
-
-Open this repository folder in a terminal. You should see `package.json` and an `src` folder here.
-
-Then run:
+## Run locally
 
 ```bash
 npm install
+cp .env.example .env.local   # optional — only if using Gemini
 npm run dev
 ```
 
 Open the URL Next prints (usually http://localhost:3000).
 
-That is it. **Do not `cd` into any subfolder.**
+### Offline mode (default)
+If `GEMINI_API_KEY` is empty, Vouch uses built-in local rules. No paid services required.
 
-### If `npm` is missing
-
-Install Node.js LTS from https://nodejs.org then reopen the terminal and run the two commands above again.
-
-### If you are on the wrong branch
-
-Vouch lives on branch `cursor/vouch-scam-detector-b546` until the PR is merged:
+### Live Gemini mode (optional)
+1. Get a key from https://aistudio.google.com/apikey  
+2. Put it in `.env.local`:
 
 ```bash
-git fetch origin
-git checkout cursor/vouch-scam-detector-b546
-npm install
-npm run dev
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-2.0-flash
+GEMINI_TEMPERATURE=0.2
 ```
 
-## What this app does
+3. Restart `npm run dev`  
+4. Settings should show **Live Gemini**
 
-- Paste a message → Safe / Potential Scam with plain-language reasons
-- Two local models with the same inputs: **Guardian** (strict) and **Balancer** (lenient)
-- Built-in samples for demos (safe / scam / borderline)
+Never commit `.env.local` or paste the key into chat/GitHub.
+
+## What it does
+
+- Paste a message → **Safe** or **Potential Scam** with plain-language reasons
+- Two policies, same input:
+  - **Guardian** (strict)
+  - **Balancer** (lenient)
+- Built-in samples: safe / scam / borderline
 - Report & quarantine feedback stored in the browser
 
-## Deploy on Vercel (share with classmates)
+## Deploy on Vercel
 
-1. Import this repo in Vercel  
-2. Leave **Root Directory** as the repository root (do not set it to `vouch`)  
-3. Deploy — no environment variables needed  
-4. Share the `*.vercel.app` link  
+1. Import the `maidm-vouch` GitHub/Origin repo
+2. Framework: Next.js · Root Directory: blank
+3. Add env var **only if using Gemini**:
+   - `GEMINI_API_KEY` = your key
+   - optional: `GEMINI_MODEL=gemini-2.0-flash`
+4. Deploy and share the `*.vercel.app` URL
 
-## Other folders in this repo
-
-| Folder | What it is |
-| --- | --- |
-| *(root)* | **Vouch** — the app you want for class |
-| `ethics-of-prediction/` | Separate earlier ethics simulator |
-| `ai-life-simulator/` | Earlier life-path demo (archived here) |
+Without the env var, the deployed site stays on offline local rules.
 
 ## Tests
 
 ```bash
 npm test
 ```
+
+## Notes
+
+- Demo only — not a guarantee of safety
+- Do not paste real passwords or sensitive personal data

@@ -37,10 +37,15 @@ const FINANCIAL_PATTERNS = [
   /\bgift card\b/i,
   /\bcrypto(currency)?\b|\bbitcoin\b|\busdt\b/i,
   /\bsend (money|payment|funds)\b/i,
-  /\bpay (now|immediately|today)\b/i,
+  /\b(make|send|complete|process|submit)\s+(the\s+)?payment\b/i,
+  /\bpay(ment)?\s+(now|immediately|today|here|at this|via|through)\b/i,
+  /\b(please\s+)?(make|send)\s+payment\b/i,
+  /\btransfer\s+(funds|money|payment)\b/i,
   /\binvoice attached\b/i,
   /\brefund\b.*\b(click|claim|process)\b/i,
   /\bunusual (activity|transaction)\b/i,
+  /\be[- ]transfer\b/i,
+  /\bvenmo\b|\bzelle\b|\binterac\b/i,
 ];
 
 const BRANDS: { name: string; domains: string[] }[] = [
@@ -192,6 +197,17 @@ function stripHeaders(raw: string, from: string, subject: string): string {
   return body.trim();
 }
 
+function isVagueSolicitation(text: string, financialRequest: boolean, linkCount: number): boolean {
+  const compact = text.replace(/\s+/g, " ").trim();
+  const words = compact.split(/\s+/).filter(Boolean);
+  const short = words.length > 0 && words.length <= 10;
+  const dangling =
+    /\b(at this|click here|pay here|send here|do this|reply yes)\b\.?$/i.test(compact) ||
+    /\b(at this|click here)\b/i.test(compact);
+  // Short unexplained payment/action asks with no link are a common social-engineering pattern.
+  return short && linkCount === 0 && (financialRequest || dangling);
+}
+
 export function extractFeatures(rawInput: string): ExtractedFeatures {
   const raw = rawInput.trim();
   const fromMatch = raw.match(EMAIL_FROM_RE);
@@ -201,6 +217,7 @@ export function extractFeatures(rawInput: string): ExtractedFeatures {
   const body = stripHeaders(raw, from, subject) || raw;
   const links = Array.from(body.matchAll(URL_RE)).map((m) => m[0]);
   const combined = `${subject}\n${from}\n${body}`;
+  const financialRequest = FINANCIAL_PATTERNS.some((r) => r.test(combined));
 
   const channel: ExtractedFeatures["channel"] =
     from.includes("@") || subject ? "email" : links.length || raw.length < 320 ? "sms" : "unknown";
@@ -215,7 +232,8 @@ export function extractFeatures(rawInput: string): ExtractedFeatures {
     hasAttachmentCue: /\b(attachment|attached|see attached|\.exe|\.zip|\.scr)\b/i.test(combined),
     urgencyScore: scoreUrgency(combined),
     requestsPersonalInfo: PERSONAL_INFO_PATTERNS.some((r) => r.test(combined)),
-    financialRequest: FINANCIAL_PATTERNS.some((r) => r.test(combined)),
+    financialRequest,
+    vagueSolicitation: isVagueSolicitation(combined, financialRequest, links.length),
     brandImpersonation: detectBrandImpersonation(combined, from, links),
     suspiciousSender: suspiciousSender(from),
     displayNameMismatch: displayNameMismatch(from),

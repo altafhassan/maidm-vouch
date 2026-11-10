@@ -9,6 +9,7 @@ export type ModelProfile = {
     urgency: number;
     personalInfo: number;
     financial: number;
+    vagueSolicitation: number;
     brandImpersonation: number;
     suspiciousSender: number;
     displayNameMismatch: number;
@@ -87,6 +88,16 @@ export function buildIndicators(features: ExtractedFeatures): Indicator[] {
       label: "Financial or payment pressure",
       detail:
         "The message pushes payment, transfers, gift cards, crypto, or unexpected refunds — common scam tactics.",
+      severity: "high",
+    });
+  }
+
+  if (features.vagueSolicitation) {
+    indicators.push({
+      id: "vague",
+      label: "Vague or incomplete payment / action ask",
+      detail:
+        "The message is very short and asks you to pay or act without clear context, sender detail, or a legitimate destination — a common social-engineering pattern.",
       severity: "high",
     });
   }
@@ -170,6 +181,7 @@ export function scoreWithProfile(
     features.urgencyScore * w.urgency +
     (features.requestsPersonalInfo ? w.personalInfo : 0) +
     (features.financialRequest ? w.financial : 0) +
+    (features.vagueSolicitation ? w.vagueSolicitation : 0) +
     (features.brandImpersonation ? w.brandImpersonation : 0) +
     (features.suspiciousSender ? w.suspiciousSender : 0) +
     (features.displayNameMismatch ? w.displayNameMismatch : 0) +

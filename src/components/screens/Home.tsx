@@ -16,6 +16,7 @@ type Props = {
   tip: string;
   stats: AppStats;
   primaryModel: ModelId;
+  engineLabel?: string;
   onScan: () => void;
   onQuarantine: () => void;
   onRecent: () => void;
@@ -35,6 +36,7 @@ export function Home({
   tip,
   stats,
   primaryModel,
+  engineLabel = "Offline local rules",
   onScan,
   onQuarantine,
   onRecent,
@@ -112,6 +114,8 @@ export function Home({
         <span className="font-semibold text-[var(--vouch-navy)]">
           {primaryModel === "guardian" ? "Guardian (strict)" : "Balancer (lenient)"}
         </span>
+        {" · "}
+        <span className="font-semibold text-[var(--vouch-navy)]">{engineLabel}</span>
       </p>
 
       <div className="mt-4 flex flex-col gap-3">

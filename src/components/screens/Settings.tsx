@@ -1,11 +1,12 @@
 "use client";
 
-import type { ModelId, UserProfile } from "@/lib/types";
+import type { AnalysisEngine, ModelId, UserProfile } from "@/lib/types";
 import { ArrowLeftIcon } from "../ui/Icons";
 
 type Props = {
   profile: UserProfile;
   primaryModel: ModelId;
+  aiStatus: { engine: AnalysisEngine; configured: boolean; model: string };
   onBack: () => void;
   onNameChange: (name: string) => void;
   onPrimaryModelChange: (id: ModelId) => void;
@@ -15,11 +16,14 @@ type Props = {
 export function Settings({
   profile,
   primaryModel,
+  aiStatus,
   onBack,
   onNameChange,
   onPrimaryModelChange,
   onReset,
 }: Props) {
+  const live = aiStatus.engine === "gemini" && aiStatus.configured;
+
   return (
     <div className="screen-enter flex h-full flex-col px-5 pb-6 pt-5">
       <button
@@ -42,7 +46,7 @@ export function Settings({
       />
 
       <div className="mt-6 text-xs font-bold uppercase tracking-wide text-[var(--vouch-muted)]">
-        Default local model
+        Default policy profile
       </div>
       <div className="mt-2 space-y-2">
         <ModelChoice
@@ -60,10 +64,13 @@ export function Settings({
       </div>
 
       <div className="mt-8 rounded-2xl border border-[var(--vouch-line)] bg-[#f8faff] p-4 text-sm text-[var(--vouch-muted)]">
-        <p className="font-semibold text-[var(--vouch-navy)]">No API keys required</p>
+        <p className="font-semibold text-[var(--vouch-navy)]">
+          {live ? `Live Gemini · ${aiStatus.model}` : "Offline local rules"}
+        </p>
         <p className="mt-1">
-          Scoring runs in the browser with two built-in heuristic models. Deploy on Vercel so your
-          class can open the link during the presentation.
+          {live
+            ? "GEMINI_API_KEY is configured on the server. Guardian and Balancer use the same Gemini model with different strictness prompts."
+            : "No GEMINI_API_KEY found. Scoring uses built-in local heuristics. Add the key in .env.local (laptop) or Vercel env vars (deployed)."}
         </p>
       </div>
 

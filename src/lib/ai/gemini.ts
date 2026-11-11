@@ -29,6 +29,21 @@ ${SHARED_SCHEMA_INSTRUCTIONS}`,
   },
 };
 
+/** Preferred model first, then fallbacks when Google returns 503/high demand. */
+function modelCandidates(preferred: string): string[] {
+  const fallbacks = [
+    "gemini-3.8-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-flash-latest",
+  ];
+  return [preferred, ...fallbacks.filter((m) => m !== preferred)];
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function extractJson(text: string): unknown {
   const trimmed = text.trim();
   try {
@@ -67,20 +82,23 @@ function asIndicators(value: unknown): Indicator[] {
     .filter((x): x is Indicator => Boolean(x));
 }
 
-async function scoreOne(
+function isRetryableStatus(status: number) {
+  return status === 429 || status === 503;
+}
+
+async function generateOnce(
+  model: string,
   modelId: ModelId,
   message: string,
-  feedbackExamples: FeedbackExample[]
+  feedbackExamples: FeedbackExample[],
+  timeoutMs: number,
+  apiKey: string
 ): Promise<ModelResult> {
-  const config = getGeminiConfig();
-  if (!config.apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured.");
-  }
   const profile = PROFILES[modelId];
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const feedbackBlock = formatFeedbackForPrompt(feedbackExamples);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), config.timeoutMs);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const res = await fetch(url, {
@@ -88,7 +106,7 @@ async function scoreOne(
       signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
-        "x-goog-api-key": config.apiKey,
+        "x-goog-api-key": apiKey,
       },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: profile.system }] },
@@ -119,7 +137,9 @@ ${message}
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      throw new Error(`Gemini HTTP ${res.status}: ${body.slice(0, 240)}`);
+      const err = new Error(`Gemini HTTP ${res.status} (${model}): ${body.slice(0, 240)}`);
+      (err as Error & { status?: number }).status = res.status;
+      throw err;
     }
 
     const data = (await res.json()) as {
@@ -150,7 +170,7 @@ ${message}
     return {
       modelId,
       modelName: profile.name,
-      modelBlurb: profile.blurb,
+      modelBlurb: `${profile.blurb} (model: ${model})`,
       riskScore: Math.round(riskScore * 100) / 100,
       threshold: profile.threshold,
       verdict,
@@ -165,12 +185,61 @@ ${message}
     };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Gemini timed out after ${config.timeoutMs / 1000}s (${profile.name}).`);
+      throw new Error(`Gemini timed out after ${timeoutMs / 1000}s (${profile.name} / ${model}).`);
     }
     throw error;
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function scoreOne(
+  modelId: ModelId,
+  message: string,
+  feedbackExamples: FeedbackExample[]
+): Promise<{ result: ModelResult; modelUsed: string }> {
+  const config = getGeminiConfig();
+  if (!config.apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured.");
+  }
+
+  const models = modelCandidates(config.model);
+  let lastError: Error | null = null;
+
+  for (const model of models) {
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      try {
+        const result = await generateOnce(
+          model,
+          modelId,
+          message,
+          feedbackExamples,
+          config.timeoutMs,
+          config.apiKey
+        );
+        return { result, modelUsed: model };
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        lastError = err;
+        const status = (err as Error & { status?: number }).status;
+        if (status && isRetryableStatus(status) && attempt === 1) {
+          await sleep(800 * attempt);
+          continue;
+        }
+        if (status && isRetryableStatus(status)) {
+          // try next model
+          break;
+        }
+        if (status === 404) {
+          // retired model id — try next candidate
+          break;
+        }
+        throw err;
+      }
+    }
+  }
+
+  throw lastError ?? new Error("Gemini request failed.");
 }
 
 export async function analyzeWithGemini(
@@ -182,16 +251,14 @@ export async function analyzeWithGemini(
   model: string;
   feedbackCount: number;
 }> {
-  const config = getGeminiConfig();
-  // Parallel with per-call timeouts — total wait ≈ one call, not two sequential.
-  const [guardian, balancer] = await Promise.all([
+  const [guardianRes, balancerRes] = await Promise.all([
     scoreOne("guardian", message, feedbackExamples),
     scoreOne("balancer", message, feedbackExamples),
   ]);
   return {
-    guardian,
-    balancer,
-    model: config.model,
+    guardian: guardianRes.result,
+    balancer: balancerRes.result,
+    model: guardianRes.modelUsed,
     feedbackCount: feedbackExamples.length,
   };
 }

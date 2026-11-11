@@ -3,6 +3,7 @@ export type GeminiConfig = {
   apiKey: string;
   model: string;
   temperature: number;
+  /** Per-attempt Gemini call timeout. Keep short so we can fail over to another model. */
   timeoutMs: number;
 };
 
@@ -17,9 +18,10 @@ export function getGeminiConfig(): GeminiConfig {
   return {
     configured: Boolean(apiKey),
     apiKey,
-    model: (process.env.GEMINI_MODEL || "gemini-3.8-flash").trim(),
+    // Prefer a fast Flash model for demos; gemini-3.8-flash often queues/timeouts under load.
+    model: (process.env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim(),
     temperature: num(process.env.GEMINI_TEMPERATURE, 0.2),
-    timeoutMs: num(process.env.GEMINI_TIMEOUT_MS, 25000),
+    timeoutMs: num(process.env.GEMINI_TIMEOUT_MS, 12000),
   };
 }
 

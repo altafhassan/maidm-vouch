@@ -118,7 +118,7 @@ export function VouchApp() {
     setAnalyzing(true);
     setAnalyzeError(null);
     const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 50000);
+    const timer = window.setTimeout(() => controller.abort(), 90000);
     try {
       const feedbackExamples = buildFeedbackExamples(scans);
       const res = await fetch("/api/analyze", {
@@ -161,7 +161,7 @@ export function VouchApp() {
     } catch (error) {
       const message =
         error instanceof Error && error.name === "AbortError"
-          ? "Timed out waiting for Gemini (50s). Try again, or check Vercel logs / API quota."
+          ? "Timed out waiting for Gemini (90s). Try again in a moment — Google may be overloaded."
           : error instanceof Error
             ? error.message
             : "Analysis failed.";

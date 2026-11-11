@@ -29,13 +29,14 @@ ${SHARED_SCHEMA_INSTRUCTIONS}`,
   },
 };
 
-/** Preferred model first, then fallbacks when Google returns 503/high demand. */
+/** Preferred model first, then faster / alternate Flash models. */
 function modelCandidates(preferred: string): string[] {
   const fallbacks = [
-    "gemini-3.8-flash",
-    "gemini-3.6-flash",
     "gemini-3.5-flash-lite",
     "gemini-flash-latest",
+    "gemini-3.6-flash",
+    "gemini-2.5-flash",
+    "gemini-3.8-flash",
   ];
   return [preferred, ...fallbacks.filter((m) => m !== preferred)];
 }
@@ -86,6 +87,20 @@ function isRetryableStatus(status: number) {
   return status === 429 || status === 503;
 }
 
+function usesThinkingConfig(model: string) {
+  // Thinking models are slower; only enable when the model id looks like a Gemini 3.x thinking flash.
+  return /gemini-3\.(6|8)/.test(model);
+}
+
+type GeminiCallError = Error & { status?: number; retryable?: boolean };
+
+function makeError(message: string, opts?: { status?: number; retryable?: boolean }): GeminiCallError {
+  const err = new Error(message) as GeminiCallError;
+  if (opts?.status != null) err.status = opts.status;
+  if (opts?.retryable != null) err.retryable = opts.retryable;
+  return err;
+}
+
 async function generateOnce(
   model: string,
   modelId: ModelId,
@@ -99,6 +114,15 @@ async function generateOnce(
   const feedbackBlock = formatFeedbackForPrompt(feedbackExamples);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  const generationConfig: Record<string, unknown> = {
+    maxOutputTokens: 768,
+    responseMimeType: "application/json",
+    temperature: getGeminiConfig().temperature,
+  };
+  if (usesThinkingConfig(model)) {
+    generationConfig.thinkingConfig = { thinkingLevel: "minimal" };
+  }
 
   try {
     const res = await fetch(url, {
@@ -127,19 +151,16 @@ ${message}
             ],
           },
         ],
-        generationConfig: {
-          thinkingConfig: { thinkingLevel: "low" },
-          maxOutputTokens: 1024,
-          responseMimeType: "application/json",
-        },
+        generationConfig,
       }),
     });
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      const err = new Error(`Gemini HTTP ${res.status} (${model}): ${body.slice(0, 240)}`);
-      (err as Error & { status?: number }).status = res.status;
-      throw err;
+      throw makeError(`Gemini HTTP ${res.status} (${model}): ${body.slice(0, 240)}`, {
+        status: res.status,
+        retryable: isRetryableStatus(res.status) || res.status === 404,
+      });
     }
 
     const data = (await res.json()) as {
@@ -150,13 +171,14 @@ ${message}
       promptFeedback?: { blockReason?: string };
     };
     if (data.promptFeedback?.blockReason) {
-      throw new Error(`Gemini blocked the prompt (${data.promptFeedback.blockReason}).`);
+      throw makeError(`Gemini blocked the prompt (${data.promptFeedback.blockReason}).`);
     }
     const candidate = data.candidates?.[0];
     const text = candidate?.content?.parts?.map((p) => p.text || "").join("\n") || "";
     if (!text.trim()) {
-      throw new Error(
-        `Gemini returned an empty response${candidate?.finishReason ? ` (${candidate.finishReason})` : ""}.`
+      throw makeError(
+        `Gemini returned an empty response${candidate?.finishReason ? ` (${candidate.finishReason})` : ""} (${model}).`,
+        { retryable: true }
       );
     }
     const parsed = extractJson(text) as Record<string, unknown>;
@@ -185,7 +207,10 @@ ${message}
     };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Gemini timed out after ${timeoutMs / 1000}s (${profile.name} / ${model}).`);
+      throw makeError(
+        `Gemini timed out after ${timeoutMs / 1000}s (${profile.name} / ${model}).`,
+        { retryable: true }
+      );
     }
     throw error;
   } finally {
@@ -207,7 +232,9 @@ async function scoreOne(
   let lastError: Error | null = null;
 
   for (const model of models) {
-    for (let attempt = 1; attempt <= 2; attempt += 1) {
+    // One quick retry only for rate-limit/503; timeouts/404 jump to the next model.
+    const maxAttempts = 2;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
         const result = await generateOnce(
           model,
@@ -219,20 +246,18 @@ async function scoreOne(
         );
         return { result, modelUsed: model };
       } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error));
+        const err = (error instanceof Error ? error : new Error(String(error))) as GeminiCallError;
         lastError = err;
-        const status = (err as Error & { status?: number }).status;
-        if (status && isRetryableStatus(status) && attempt === 1) {
-          await sleep(800 * attempt);
+        const status = err.status;
+        const timedOut = /timed out/i.test(err.message);
+        const retryable = Boolean(err.retryable) || (status != null && isRetryableStatus(status));
+
+        if (status != null && isRetryableStatus(status) && attempt < maxAttempts) {
+          await sleep(500 * attempt);
           continue;
         }
-        if (status && isRetryableStatus(status)) {
-          // try next model
-          break;
-        }
-        if (status === 404) {
-          // retired model id — try next candidate
-          break;
+        if (retryable || timedOut || status === 404) {
+          break; // next model
         }
         throw err;
       }

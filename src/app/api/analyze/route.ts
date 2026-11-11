@@ -5,6 +5,7 @@ import { extractFeatures } from "@/lib/extract";
 import type { ModelId } from "@/lib/types";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type Body = {
   message?: string;

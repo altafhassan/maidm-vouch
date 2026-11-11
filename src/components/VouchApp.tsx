@@ -117,10 +117,13 @@ export function VouchApp() {
     if (!draft.trim() || analyzing) return;
     setAnalyzing(true);
     setAnalyzeError(null);
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 50000);
     try {
       const feedbackExamples = buildFeedbackExamples(scans);
       const res = await fetch("/api/analyze", {
         method: "POST",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: draft,
@@ -156,9 +159,16 @@ export function VouchApp() {
       setViewModel(primaryModel);
       setScreen("result");
     } catch (error) {
-      setAnalyzeError(error instanceof Error ? error.message : "Analysis failed.");
+      const message =
+        error instanceof Error && error.name === "AbortError"
+          ? "Timed out waiting for Gemini (50s). Try again, or check Vercel logs / API quota."
+          : error instanceof Error
+            ? error.message
+            : "Analysis failed.";
+      setAnalyzeError(message);
       setScreen("scan");
     } finally {
+      window.clearTimeout(timer);
       setAnalyzing(false);
     }
   }

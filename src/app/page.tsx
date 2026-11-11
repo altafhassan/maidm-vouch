@@ -8,13 +8,13 @@ export default function Page() {
           Ethics class prototype
         </p>
         <p className="mt-2 text-sm text-[var(--vouch-muted)]">
-          Dual policies · local rules by default · optional Gemini when configured
+          Dual Gemini policies · feedback few-shot learning · Vercel ready
         </p>
       </div>
       <VouchApp />
       <p className="mt-6 max-w-sm text-center text-xs leading-relaxed text-[var(--vouch-muted)]">
-        Demo only. Heuristic detectors are not a guarantee of safety. Do not submit real passwords or
-        sensitive personal data.
+        Demo only. Not a guarantee of safety. Do not submit real passwords or sensitive personal
+        data.
       </p>
     </main>
   );

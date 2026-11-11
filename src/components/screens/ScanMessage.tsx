@@ -9,9 +9,17 @@ type Props = {
   onBack: () => void;
   onAnalyze: () => void;
   analyzing?: boolean;
+  error?: string | null;
 };
 
-export function ScanMessage({ value, onChange, onBack, onAnalyze, analyzing = false }: Props) {
+export function ScanMessage({
+  value,
+  onChange,
+  onBack,
+  onAnalyze,
+  analyzing = false,
+  error = null,
+}: Props) {
   return (
     <div className="screen-enter flex h-full flex-col px-5 pb-6 pt-5">
       <button
@@ -42,13 +50,19 @@ export function ScanMessage({ value, onChange, onBack, onAnalyze, analyzing = fa
         <SampleChip label="Borderline" onClick={() => onChange(SAMPLE_BORDERLINE)} />
       </div>
 
+      {error && (
+        <div className="mt-3 rounded-xl border border-[var(--vouch-danger-soft)] bg-[var(--vouch-danger-soft)] px-3 py-2 text-xs leading-relaxed text-[var(--vouch-danger)]">
+          {error}
+        </div>
+      )}
+
       <button
         type="button"
         className="btn-primary mt-4 h-12 w-full disabled:cursor-not-allowed disabled:opacity-50"
         disabled={!value.trim() || analyzing}
         onClick={onAnalyze}
       >
-        {analyzing ? "Analyzing…" : "Analyze Message"}
+        {analyzing ? "Analyzing with Gemini…" : "Analyze Message"}
       </button>
     </div>
   );

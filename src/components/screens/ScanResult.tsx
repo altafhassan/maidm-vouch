@@ -103,7 +103,11 @@ export function ScanResult({
         </button>
       )}
 
-      {isScam ? <ScamBanner result={result} /> : <SafeBanner result={result} />}
+      {isScam ? (
+        <ScamBanner result={result} engineLabel={engineLabel} />
+      ) : (
+        <SafeBanner result={result} engineLabel={engineLabel} />
+      )}
 
       <dl className="mt-4 space-y-2 text-sm">
         <MetaRow label="From" value={scan.message.from} />
@@ -234,7 +238,7 @@ function ModelTab({
   );
 }
 
-function SafeBanner({ result }: { result: ModelResult }) {
+function SafeBanner({ result, engineLabel }: { result: ModelResult; engineLabel: string }) {
   return (
     <div className="flex items-start gap-3 rounded-2xl bg-[var(--vouch-safe-soft)] p-4">
       <span className="text-[var(--vouch-safe)]">
@@ -243,13 +247,15 @@ function SafeBanner({ result }: { result: ModelResult }) {
       <div>
         <div className="text-lg font-bold text-[var(--vouch-safe)]">Looks Safe</div>
         <p className="text-sm text-[var(--vouch-navy)]">No strong scam indicators detected.</p>
-        <p className="mt-1 text-xs text-[var(--vouch-muted)]">{result.modelName} local model</p>
+        <p className="mt-1 text-xs text-[var(--vouch-muted)]">
+          {result.modelName} · {engineLabel}
+        </p>
       </div>
     </div>
   );
 }
 
-function ScamBanner({ result }: { result: ModelResult }) {
+function ScamBanner({ result, engineLabel }: { result: ModelResult; engineLabel: string }) {
   return (
     <div className="flex items-start gap-3 rounded-2xl bg-[var(--vouch-danger-soft)] p-4">
       <span className="text-[var(--vouch-danger)]">
@@ -258,7 +264,9 @@ function ScamBanner({ result }: { result: ModelResult }) {
       <div>
         <div className="text-lg font-bold text-[var(--vouch-danger)]">Potential Scam</div>
         <p className="text-sm text-[var(--vouch-navy)]">This message has several red flags.</p>
-        <p className="mt-1 text-xs text-[var(--vouch-muted)]">{result.modelName} local model</p>
+        <p className="mt-1 text-xs text-[var(--vouch-muted)]">
+          {result.modelName} · {engineLabel}
+        </p>
       </div>
     </div>
   );

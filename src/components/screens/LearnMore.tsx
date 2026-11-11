@@ -19,22 +19,18 @@ export function LearnMore({ onBack }: Props) {
       <h1 className="font-display text-3xl font-bold text-[var(--vouch-navy)]">How Vouch works</h1>
       <div className="mt-5 space-y-4 text-[15px] leading-relaxed text-[var(--vouch-muted)]">
         <p>
-          Vouch is a classroom prototype of a spam and scam detector. It runs entirely in your
-          browser — no API keys, no cloud model calls, and no paid services.
+          Vouch is a classroom prototype of a spam and scam detector. Scans are powered by{" "}
+          <strong>Gemini</strong>. Without a configured API key, analysis will not run.
         </p>
         <p>
-          When you paste a message, Vouch extracts signals from your design (urgency, suspicious
-          links, brand impersonation, requests for personal or financial information, sender
-          mismatch, and more). Two built-in local models — <strong>Guardian</strong> (strict) and{" "}
-          <strong>Balancer</strong> (lenient) — score the same features with different weights.
+          Each message is scored twice with the same Gemini model and parameters, but different
+          policy prompts: <strong>Guardian</strong> (strict) and <strong>Balancer</strong>{" "}
+          (lenient). That supports an ethics discussion about disagreement under identical inputs.
         </p>
         <p>
-          That dual scoring lets your team show an ethics point: given identical input and the same
-          feature set, different model choices can produce different risk scores and verdicts.
-        </p>
-        <p>
-          User feedback (“Report &amp; Quarantine” / “Mark as Safe”) is stored locally so you can
-          describe a learning loop in your presentation without training a real neural network.
+          When you tap <strong>Report &amp; Quarantine</strong> or <strong>Mark as Safe</strong>,
+          those labels stay in this browser and are included in later Gemini prompts as few-shot
+          examples, so similar future messages can be judged more consistently.
         </p>
       </div>
     </div>

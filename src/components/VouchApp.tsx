@@ -1,6 +1,6 @@
 "use client";
 
-import { analyzeMessage } from "@/lib/models";
+import { buildFeedbackExamples } from "@/lib/feedbackExamples";
 import { TIPS } from "@/lib/samples";
 import {
   computeStats,
@@ -55,7 +55,7 @@ export function VouchApp() {
   const [aiStatus, setAiStatus] = useState<AiStatus>({
     engine: "local",
     configured: false,
-    model: "local-rules",
+    model: "unset",
   });
 
   const [tip] = useState(() => TIPS[0]);
@@ -82,13 +82,18 @@ export function VouchApp() {
         if (data?.engine) setAiStatus(data);
       })
       .catch(() => {
-        /* keep local defaults */
+        /* keep defaults */
       });
   }, []);
 
   const stats = useMemo(
     () => computeStats(scans, primaryModel),
     [scans, primaryModel]
+  );
+
+  const feedbackCount = useMemo(
+    () => scans.filter((s) => s.feedback === "confirmed_scam" || s.feedback === "marked_safe").length,
+    [scans]
   );
 
   const activeScan = scans.find((s) => s.id === activeScanId) ?? null;
@@ -113,29 +118,34 @@ export function VouchApp() {
     setAnalyzing(true);
     setAnalyzeError(null);
     try {
+      const feedbackExamples = buildFeedbackExamples(scans);
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: draft, primaryModel }),
+        body: JSON.stringify({
+          message: draft,
+          primaryModel,
+          feedbackExamples,
+        }),
       });
       const data = await res.json();
+      if (data.status) {
+        setAiStatus({
+          engine: data.status.configured ? "gemini" : "local",
+          configured: Boolean(data.status.configured),
+          model: data.status.model || "unset",
+        });
+      }
       if (!res.ok) {
         throw new Error(data?.error || "Analysis failed.");
       }
-
-      const analyzed = data.analysis ?? analyzeMessage(draft, primaryModel);
-      const engine: AnalysisEngine = data.engine === "gemini" ? "gemini" : "local";
-      if (data.status?.engine) {
-        setAiStatus({
-          engine: data.status.engine,
-          configured: Boolean(data.status.configured),
-          model: data.status.model || (engine === "gemini" ? "gemini" : "local-rules"),
-        });
+      if (data.engine !== "gemini" || !data.analysis) {
+        throw new Error("Unexpected analyze response.");
       }
 
       const record: ScanRecord = {
-        ...analyzed,
-        engine,
+        ...data.analysis,
+        engine: "gemini",
         id: newId(),
         createdAt: new Date().toISOString(),
         quarantined: false,
@@ -146,25 +156,8 @@ export function VouchApp() {
       setViewModel(primaryModel);
       setScreen("result");
     } catch (error) {
-      // Last-resort offline path if the API route itself is unreachable.
-      const analyzed = analyzeMessage(draft, primaryModel);
-      const record: ScanRecord = {
-        ...analyzed,
-        engine: "local",
-        id: newId(),
-        createdAt: new Date().toISOString(),
-        quarantined: false,
-        feedback: null,
-      };
-      persistScans([record, ...scans]);
-      setActiveScanId(record.id);
-      setViewModel(primaryModel);
-      setAnalyzeError(
-        error instanceof Error
-          ? `${error.message} — used offline local scoring.`
-          : "Used offline local scoring."
-      );
-      setScreen("result");
+      setAnalyzeError(error instanceof Error ? error.message : "Analysis failed.");
+      setScreen("scan");
     } finally {
       setAnalyzing(false);
     }
@@ -195,6 +188,7 @@ export function VouchApp() {
   function openScan(id: string) {
     setActiveScanId(id);
     setViewModel(primaryModel);
+    setAnalyzeError(null);
     setScreen("result");
   }
 
@@ -202,6 +196,7 @@ export function VouchApp() {
     persistScans([]);
     setActiveScanId(null);
     setDraft("");
+    setAnalyzeError(null);
   }
 
   if (!ready) {
@@ -227,11 +222,14 @@ export function VouchApp() {
           stats={stats}
           primaryModel={primaryModel}
           engineLabel={
-            aiStatus.engine === "gemini"
-              ? `Live Gemini (${aiStatus.model})`
-              : "Offline local rules"
+            aiStatus.configured
+              ? `Live Gemini (${aiStatus.model}) · ${feedbackCount} feedback label${feedbackCount === 1 ? "" : "s"}`
+              : "Gemini not configured"
           }
-          onScan={() => setScreen("scan")}
+          onScan={() => {
+            setAnalyzeError(null);
+            setScreen("scan");
+          }}
           onQuarantine={() => setScreen("quarantine")}
           onRecent={() => setScreen("recent")}
           onCompare={() => setScreen("compare")}
@@ -245,6 +243,7 @@ export function VouchApp() {
           onBack={() => setScreen("home")}
           onAnalyze={runAnalyze}
           analyzing={analyzing}
+          error={analyzeError}
         />
       )}
       {screen === "result" && activeScan && (
@@ -261,7 +260,6 @@ export function VouchApp() {
           onReport={reportQuarantine}
           onMarkSafe={markSafe}
           onOpenCompare={() => setScreen("compare")}
-          notice={analyzeError}
         />
       )}
       {screen === "quarantine" && (
@@ -292,6 +290,7 @@ export function VouchApp() {
           profile={profile}
           primaryModel={primaryModel}
           aiStatus={aiStatus}
+          feedbackCount={feedbackCount}
           onBack={() => setScreen("home")}
           onNameChange={(name) => persistProfile({ ...profile, name })}
           onPrimaryModelChange={(id) => {

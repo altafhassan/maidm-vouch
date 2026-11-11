@@ -7,6 +7,7 @@ type Props = {
   profile: UserProfile;
   primaryModel: ModelId;
   aiStatus: { engine: AnalysisEngine; configured: boolean; model: string };
+  feedbackCount: number;
   onBack: () => void;
   onNameChange: (name: string) => void;
   onPrimaryModelChange: (id: ModelId) => void;
@@ -17,12 +18,13 @@ export function Settings({
   profile,
   primaryModel,
   aiStatus,
+  feedbackCount,
   onBack,
   onNameChange,
   onPrimaryModelChange,
   onReset,
 }: Props) {
-  const live = aiStatus.engine === "gemini" && aiStatus.configured;
+  const live = aiStatus.configured;
 
   return (
     <div className="screen-enter flex h-full flex-col px-5 pb-6 pt-5">
@@ -65,12 +67,16 @@ export function Settings({
 
       <div className="mt-8 rounded-2xl border border-[var(--vouch-line)] bg-[#f8faff] p-4 text-sm text-[var(--vouch-muted)]">
         <p className="font-semibold text-[var(--vouch-navy)]">
-          {live ? `Live Gemini · ${aiStatus.model}` : "Offline local rules"}
+          {live ? `Live Gemini · ${aiStatus.model}` : "Gemini not configured"}
         </p>
         <p className="mt-1">
           {live
-            ? "GEMINI_API_KEY is configured on the server. Guardian and Balancer use the same Gemini model with different strictness prompts."
-            : "No GEMINI_API_KEY found. Scoring uses built-in local heuristics. Add the key in .env.local (laptop) or Vercel env vars (deployed)."}
+            ? "All scans use Gemini. Guardian and Balancer share the same model with different strictness prompts. Local rule scoring is disabled."
+            : "Add GEMINI_API_KEY in .env.local (laptop) or Vercel Environment Variables, then redeploy. Scans will not run without it."}
+        </p>
+        <p className="mt-2">
+          Feedback labels in this browser: <strong>{feedbackCount}</strong>. Report / Mark Safe
+          examples are sent into later Gemini prompts (few-shot learning).
         </p>
       </div>
 

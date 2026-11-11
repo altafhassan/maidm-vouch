@@ -1,5 +1,6 @@
 import type { Indicator, ModelId, ModelResult, Verdict } from "../types";
 import { getGeminiConfig } from "./config";
+import { formatFeedbackForPrompt, type FeedbackExample } from "./feedback";
 
 const SHARED_SCHEMA_INSTRUCTIONS = `Return ONLY valid JSON with this exact shape:
 {
@@ -13,7 +14,8 @@ Rules:
 - If verdict is "potential_scam", put red flags in indicators (1-5) and leave safeReasons as [].
 - If verdict is "safe", put 2-4 short reasons in safeReasons and leave indicators as [].
 - Use plain language for a non-technical user.
-- riskScore must be consistent with verdict.`;
+- riskScore must be consistent with verdict.
+- If user-labeled feedback examples are provided, treat them as guidance for similar future messages (few-shot learning). Prefer consistency with those labels when the new message is clearly similar, but still judge each message on its own merits.`;
 
 const PROFILES: Record<
   ModelId,
@@ -79,13 +81,18 @@ function asIndicators(value: unknown): Indicator[] {
     .filter((x): x is Indicator => Boolean(x));
 }
 
-async function scoreOne(modelId: ModelId, message: string): Promise<ModelResult> {
+async function scoreOne(
+  modelId: ModelId,
+  message: string,
+  feedbackExamples: FeedbackExample[]
+): Promise<ModelResult> {
   const config = getGeminiConfig();
   if (!config.apiKey) {
     throw new Error("GEMINI_API_KEY is not configured.");
   }
   const profile = PROFILES[modelId];
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent`;
+  const feedbackBlock = formatFeedbackForPrompt(feedbackExamples);
 
   const res = await fetch(url, {
     method: "POST",
@@ -100,7 +107,14 @@ async function scoreOne(modelId: ModelId, message: string): Promise<ModelResult>
           role: "user",
           parts: [
             {
-              text: `Analyze this message for scam/spam risk.\n\n---\n${message}\n---`,
+              text: `User-labeled feedback from earlier scans (few-shot guidance):
+${feedbackBlock}
+
+Analyze this new message for scam/spam risk.
+
+---
+${message}
+---`,
             },
           ],
         },
@@ -118,9 +132,22 @@ async function scoreOne(modelId: ModelId, message: string): Promise<ModelResult>
   }
 
   const data = (await res.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    candidates?: Array<{
+      finishReason?: string;
+      content?: { parts?: Array<{ text?: string }> };
+    }>;
+    promptFeedback?: { blockReason?: string };
   };
-  const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("\n") || "";
+  if (data.promptFeedback?.blockReason) {
+    throw new Error(`Gemini blocked the prompt (${data.promptFeedback.blockReason}).`);
+  }
+  const candidate = data.candidates?.[0];
+  const text = candidate?.content?.parts?.map((p) => p.text || "").join("\n") || "";
+  if (!text.trim()) {
+    throw new Error(
+      `Gemini returned an empty response${candidate?.finishReason ? ` (${candidate.finishReason})` : ""}.`
+    );
+  }
   const parsed = extractJson(text) as Record<string, unknown>;
   const riskScore = Math.max(0, Math.min(1, Number(parsed.riskScore) || 0));
   const verdict = asVerdict(parsed.verdict);
@@ -147,15 +174,23 @@ async function scoreOne(modelId: ModelId, message: string): Promise<ModelResult>
   };
 }
 
-export async function analyzeWithGemini(message: string): Promise<{
+export async function analyzeWithGemini(
+  message: string,
+  feedbackExamples: FeedbackExample[] = []
+): Promise<{
   guardian: ModelResult;
   balancer: ModelResult;
   model: string;
+  feedbackCount: number;
 }> {
   const config = getGeminiConfig();
-  const [guardian, balancer] = await Promise.all([
-    scoreOne("guardian", message),
-    scoreOne("balancer", message),
-  ]);
-  return { guardian, balancer, model: config.model };
+  // Sequential calls avoid free-tier burst/rate-limit failures from parallel requests.
+  const guardian = await scoreOne("guardian", message, feedbackExamples);
+  const balancer = await scoreOne("balancer", message, feedbackExamples);
+  return {
+    guardian,
+    balancer,
+    model: config.model,
+    feedbackCount: feedbackExamples.length,
+  };
 }

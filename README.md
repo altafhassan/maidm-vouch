@@ -13,9 +13,8 @@ Edit `.env.local`:
 
 ```bash
 GEMINI_API_KEY=your_key_here
-# optional:
-# GEMINI_MODEL=gemini-2.0-flash
-# GEMINI_TEMPERATURE=0.2
+# optional override (default: gemini-3.8-flash)
+# GEMINI_MODEL=gemini-3.8-flash
 ```
 
 ```bash

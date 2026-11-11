@@ -16,7 +16,7 @@ export function getGeminiConfig(): GeminiConfig {
   return {
     configured: Boolean(apiKey),
     apiKey,
-    model: (process.env.GEMINI_MODEL || "gemini-2.0-flash").trim(),
+    model: (process.env.GEMINI_MODEL || "gemini-3.8-flash").trim(),
     temperature: num(process.env.GEMINI_TEMPERATURE, 0.2),
   };
 }

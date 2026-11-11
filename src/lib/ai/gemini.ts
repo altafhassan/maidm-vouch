@@ -120,7 +120,8 @@ ${message}
         },
       ],
       generationConfig: {
-        temperature: config.temperature,
+        // Gemini 3.x prefers thinkingLevel over legacy sampling knobs.
+        thinkingConfig: { thinkingLevel: "low" },
         responseMimeType: "application/json",
       },
     }),

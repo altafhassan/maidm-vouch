@@ -7,15 +7,12 @@ export default function Page() {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--vouch-blue)]">
           Ethics class prototype
         </p>
-        <p className="mt-2 text-sm text-[var(--vouch-muted)]">
-          Dual Gemini policies · feedback few-shot learning · Vercel ready
+        <p className="mt-2 text-xs leading-relaxed text-[var(--vouch-muted)] sm:text-sm">
+          Demo only. Not a guarantee of safety. Do not submit real passwords or sensitive personal
+          data.
         </p>
       </div>
       <VouchApp />
-      <p className="mt-6 max-w-sm text-center text-xs leading-relaxed text-[var(--vouch-muted)]">
-        Demo only. Not a guarantee of safety. Do not submit real passwords or sensitive personal
-        data.
-      </p>
     </main>
   );
 }

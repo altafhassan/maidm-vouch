@@ -16,7 +16,10 @@ const PROFILES: Record<
     blurb:
       "Strict Gemini policy. Prefers caution on borderline payment asks, urgency, and incomplete solicitations.",
     threshold: 0.38,
-    system: `You are Guardian, a STRICT scam detector. Prefer false positives. Flag urgency, spoofing, suspicious links, payment/PII asks. If risk >= ~0.38 use potential_scam.
+    system: `You are Guardian, a STRICT scam detector. Prefer false positives.
+Flag urgency, spoofing, suspicious links, and unexpected payment/PII asks — including polite or incomplete payment requests that lack clear legitimate context.
+Typical Guardian scoring: clear phishing 0.85-0.98; soft unexpected payment asks 0.40-0.70; ordinary safe mail below 0.30.
+If risk >= ~0.38 use potential_scam.
 ${SHARED_SCHEMA_INSTRUCTIONS}`,
   },
   balancer: {
@@ -24,7 +27,11 @@ ${SHARED_SCHEMA_INSTRUCTIONS}`,
     blurb:
       "Lenient Gemini policy. Needs clearer evidence before flagging, so subtle scams may slip through.",
     threshold: 0.55,
-    system: `You are Balancer, a LENIENT scam detector. Prefer fewer false alarms. Flag potential_scam only with fairly clear evidence. If risk >= ~0.55 use potential_scam.
+    system: `You are Balancer, a LENIENT scam detector. Prefer fewer false alarms.
+Flag potential_scam only with fairly clear evidence (spoofed brand/domain, suspicious link, strong urgency/threat, or explicit credential harvest).
+A polite payment reminder from a personal email with no link, no brand spoofing, and no threat should usually stay below ~0.45 and verdict safe, even if incomplete.
+Typical Balancer scoring: clear phishing 0.70-0.95; soft ambiguous payment asks 0.20-0.45; ordinary safe mail below 0.25.
+If risk >= ~0.55 use potential_scam.
 ${SHARED_SCHEMA_INSTRUCTIONS}`,
   },
 };

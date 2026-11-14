@@ -47,7 +47,7 @@ export function ScanMessage({
       <div className="mt-3 flex flex-wrap gap-2">
         <SampleChip label="Safe sample" onClick={() => onChange(SAMPLE_SAFE)} />
         <SampleChip label="Scam sample" onClick={() => onChange(SAMPLE_SCAM)} />
-        <SampleChip label="Borderline" onClick={() => onChange(SAMPLE_BORDERLINE)} />
+        <SampleChip label="Borderline (soft ask)" onClick={() => onChange(SAMPLE_BORDERLINE)} />
       </div>
 
       {error && (

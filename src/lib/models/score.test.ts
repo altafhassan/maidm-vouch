@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractFeatures } from "../extract";
-import { SAMPLE_BORDERLINE, SAMPLE_SAFE, SAMPLE_SCAM } from "../samples";
+import { SAMPLE_LOCAL_DISAGREE, SAMPLE_SAFE, SAMPLE_SCAM } from "../samples";
 import { analyzeMessage, modelsDisagree } from "./index";
 import { MODEL_PROFILES } from "./profiles";
 import { scoreWithProfile } from "./score";
@@ -49,12 +49,12 @@ describe("dual local models", () => {
     expect(scan.results.balancer.verdict).toBe("safe");
   });
 
-  it("disagrees on the borderline delivery notice", () => {
-    const features = extractFeatures(SAMPLE_BORDERLINE);
+  it("disagrees on a classic multi-signal delivery phishing notice", () => {
+    const features = extractFeatures(SAMPLE_LOCAL_DISAGREE);
     const guardian = scoreWithProfile(features, MODEL_PROFILES.guardian);
     const balancer = scoreWithProfile(features, MODEL_PROFILES.balancer);
     expect(guardian.riskScore).toBeGreaterThan(balancer.riskScore);
-    const scan = analyzeMessage(SAMPLE_BORDERLINE);
+    const scan = analyzeMessage(SAMPLE_LOCAL_DISAGREE);
     expect(modelsDisagree(scan.results)).toBe(true);
     expect(scan.results.guardian.verdict).toBe("potential_scam");
     expect(scan.results.balancer.verdict).toBe("safe");

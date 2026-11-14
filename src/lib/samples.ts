@@ -26,7 +26,23 @@ Please confirm your password and payment details to avoid interruption.
 
 Amazon Security Team`;
 
-export const SAMPLE_BORDERLINE = `From: notices@delivery-update.net
+/**
+ * Soft / ambiguous case for classroom disagreement:
+ * polite payment ask, personal sender, no fake brand, no urgent threat, no link.
+ * Guardian should often flag; Balancer should often stay closer to safe.
+ */
+export const SAMPLE_BORDERLINE = `From: leslie.park@gmail.com
+Subject: Quick favor
+
+Hi,
+
+Can you make the payment when you get a chance? Same details as before should work. Text me if anything looks off.
+
+Thanks,
+Leslie`;
+
+/** Classic multi-signal phishing used by local-heuristic tests (not the UI chip). */
+export const SAMPLE_LOCAL_DISAGREE = `From: notices@delivery-update.net
 Subject: Action required: package held at depot
 
 Hi,

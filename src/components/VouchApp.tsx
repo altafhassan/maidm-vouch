@@ -1,7 +1,7 @@
 "use client";
 
 import { buildFeedbackExamples } from "@/lib/feedbackExamples";
-import { TIPS } from "@/lib/samples";
+import { tipOfTheDay } from "@/lib/samples";
 import {
   computeStats,
   loadPrimaryModel,
@@ -44,7 +44,7 @@ type AiStatus = {
 export function VouchApp() {
   const [ready, setReady] = useState(false);
   const [screen, setScreen] = useState<Screen>("onboarding");
-  const [profile, setProfile] = useState<UserProfile>({ name: "Christine", onboarded: false });
+  const [profile, setProfile] = useState<UserProfile>({ name: "", onboarded: false });
   const [scans, setScans] = useState<ScanRecord[]>([]);
   const [primaryModel, setPrimaryModel] = useState<ModelId>("guardian");
   const [draft, setDraft] = useState("");
@@ -58,18 +58,18 @@ export function VouchApp() {
     model: "unset",
   });
 
-  const [tip] = useState(() => TIPS[0]);
+  const [tip] = useState(() => tipOfTheDay());
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const p = loadProfile();
       const loadedScans = loadScans();
       const model = loadPrimaryModel();
-      setProfile(p.name ? p : { name: "Christine", onboarded: p.onboarded });
+      setProfile(p);
       setScans(loadedScans);
       setPrimaryModel(model);
       setViewModel(model);
-      setScreen(p.onboarded ? "home" : "onboarding");
+      setScreen(p.onboarded && p.name ? "home" : "onboarding");
       setReady(true);
     }, 0);
     return () => window.clearTimeout(timer);
@@ -108,8 +108,10 @@ export function VouchApp() {
     saveProfile(next);
   }
 
-  function start() {
-    persistProfile({ ...profile, onboarded: true, name: profile.name || "Christine" });
+  function start(name: string) {
+    const cleaned = name.trim().replace(/\s+/g, " ").slice(0, 40);
+    if (!cleaned) return;
+    persistProfile({ ...profile, onboarded: true, name: cleaned });
     setScreen("home");
   }
 
@@ -227,7 +229,7 @@ export function VouchApp() {
       )}
       {screen === "home" && (
         <Home
-          name={profile.name || "there"}
+          name={profile.name}
           tip={tip}
           stats={stats}
           primaryModel={primaryModel}
@@ -302,7 +304,10 @@ export function VouchApp() {
           aiStatus={aiStatus}
           feedbackCount={feedbackCount}
           onBack={() => setScreen("home")}
-          onNameChange={(name) => persistProfile({ ...profile, name })}
+          onNameChange={(name) => {
+            const cleaned = name.replace(/\s+/g, " ").slice(0, 40);
+            persistProfile({ ...profile, name: cleaned });
+          }}
           onPrimaryModelChange={(id) => {
             setPrimaryModel(id);
             savePrimaryModel(id);

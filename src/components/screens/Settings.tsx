@@ -43,6 +43,7 @@ export function Settings({
       <input
         value={profile.name}
         onChange={(e) => onNameChange(e.target.value)}
+        placeholder="Your name"
         className="mt-2 h-12 w-full rounded-xl border border-[var(--vouch-line)] bg-white px-4 text-sm outline-none focus:border-[var(--vouch-blue)]"
         maxLength={40}
       />

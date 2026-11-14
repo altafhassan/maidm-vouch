@@ -46,3 +46,11 @@ export const TIPS = [
   "A mismatched display name and email address is a classic phishing tell.",
   "When two detectors disagree, treat that disagreement as a reason to slow down and verify offline.",
 ];
+
+/** Stable tip for the local calendar day so classmates see the same tip that day. */
+export function tipOfTheDay(date = new Date()): string {
+  const start = Date.UTC(date.getFullYear(), 0, 0);
+  const now = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayOfYear = Math.round((now - start) / 86_400_000);
+  return TIPS[dayOfYear % TIPS.length] ?? TIPS[0];
+}

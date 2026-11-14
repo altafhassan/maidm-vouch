@@ -11,13 +11,21 @@ function canUseStorage() {
 }
 
 export function loadProfile(): UserProfile {
-  if (!canUseStorage()) return { name: "Guest", onboarded: false };
+  if (!canUseStorage()) return { name: "", onboarded: false };
   try {
     const raw = localStorage.getItem(PROFILE_KEY);
-    if (!raw) return { name: "Guest", onboarded: false };
-    return JSON.parse(raw) as UserProfile;
+    if (!raw) return { name: "", onboarded: false };
+    const parsed = JSON.parse(raw) as UserProfile;
+    const name = typeof parsed.name === "string" ? parsed.name.trim() : "";
+    // Older builds defaulted to "Guest" / "Christine" — treat those as unset.
+    const cleaned =
+      !name || /^guest$/i.test(name) || /^christine$/i.test(name) ? "" : name.slice(0, 40);
+    return {
+      name: cleaned,
+      onboarded: Boolean(parsed.onboarded) && Boolean(cleaned),
+    };
   } catch {
-    return { name: "Guest", onboarded: false };
+    return { name: "", onboarded: false };
   }
 }
 
